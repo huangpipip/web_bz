@@ -16,6 +16,23 @@ function countByType(computation: BzComputation | null, type: "center" | "edge" 
   return computation.points.filter((point) => point.type === type).length;
 }
 
+function pointTypeLabel(type: "center" | "edge" | "line" | "poly"): string {
+  switch (type) {
+    case "center":
+      return "Center";
+    case "edge":
+      return "Vertex";
+    case "line":
+      return "Edge midpoint";
+    case "poly":
+      return "Face center";
+  }
+}
+
+function formatVector(values: [number, number, number], digits = 4): string {
+  return values.map((value) => value.toFixed(digits)).join(", ");
+}
+
 export default function App(): JSX.Element {
   const [poscarText, setPoscarText] = useState(INITIAL_POSCAR);
   const [computation, setComputation] = useState<BzComputation | null>(() => {
@@ -35,9 +52,11 @@ export default function App(): JSX.Element {
   const [showVectors, setShowVectors] = useState(true);
   const [kPath, setKPath] = useState<KPathPointDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [viewResetToken, setViewResetToken] = useState(0);
 
   const selectedPoint = computation?.points.find((point) => point.id === selectedPointId) ?? null;
   const resolvedKPath = computation ? resolveKPathPoints(kPath, computation.reciprocal) : [];
+  const validKPathCount = resolvedKPath.filter((point) => !point.error).length;
 
   const handleRender = (): void => {
     try {
@@ -102,138 +121,196 @@ export default function App(): JSX.Element {
 
   return (
     <div className="app-shell">
-      <div className="app-backdrop" />
-      <main className="app-layout">
-        <section className="hero">
-          <div className="hero-copy">
-            <span className="eyebrow">POSCAR to Brillouin Zone</span>
-            <h1>Interactive first-BZ viewer with XCrySDen-style special points.</h1>
-            <p>
-              Paste a POSCAR, compute the reciprocal lattice in-browser, build the first Brillouin zone,
-              then inspect the center, vertices, edge midpoints, and face centers extracted from the final
-              polyhedron.
-            </p>
+      <aside className="control-panel">
+        <section className="panel toolbar-header">
+          <span className="eyebrow">POSCAR to Brillouin Zone</span>
+          <h1>Brillouin Zone Workbench</h1>
+          <p>
+            Parse a POSCAR locally, compute the first Brillouin zone in-browser, inspect XCrySDen-style
+            special points, and assemble an editable reciprocal-space K path.
+          </p>
+        </section>
+
+        <section className="panel input-panel">
+          <div className="panel-header">
+            <div>
+              <h2>POSCAR Input</h2>
+              <p>All controls stay on the left so the viewer can use the full right-side workspace.</p>
+            </div>
+            <div className="panel-chip">{computation ? computation.parsed.title : "Not rendered"}</div>
           </div>
-          <div className="hero-stats">
-            <div className="stat-card">
+
+          <textarea
+            aria-label="POSCAR input"
+            className="poscar-textarea"
+            value={poscarText}
+            onChange={(event) => setPoscarText(event.target.value)}
+            spellCheck={false}
+          />
+
+          <div className="controls-row">
+            <button className="primary-button" type="button" onClick={handleRender}>
+              Render Brillouin Zone
+            </button>
+            <button className="ghost-button" type="button" onClick={() => setPoscarText(SILICON_SINGLE_CRYSTAL_SAMPLE)}>
+              Load Si sample
+            </button>
+            <button className="ghost-button" type="button" onClick={() => setViewResetToken((current) => current + 1)}>
+              Reset view
+            </button>
+            <label className="toggle-row">
+              <input
+                checked={showVectors}
+                onChange={(event) => setShowVectors(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Show reciprocal vectors</span>
+            </label>
+          </div>
+
+          {error ? <div className="error-banner">{error}</div> : null}
+
+          {computation ? (
+            <div className="details-grid">
+              <div>
+                <span className="detail-label">Structure</span>
+                <strong>{computation.parsed.title}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Species</span>
+                <strong>{computation.parsed.species.join(", ")}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Coordinate mode</span>
+                <strong>{computation.parsed.coordinateMode}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Total points</span>
+                <strong>{computation.points.length}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="panel-empty compact-empty">
+              <p>Render the POSCAR to unlock the special-point table, K-path editor, and right-side viewer.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="panel summary-panel">
+          <div className="panel-header">
+            <div>
+              <h2>Workspace Summary</h2>
+              <p>Current model status, selection, and K-path progress.</p>
+            </div>
+          </div>
+
+          <div className="summary-grid">
+            <div className="summary-card">
               <span>Faces</span>
               <strong>{computation?.bz.faces.length ?? 0}</strong>
             </div>
-            <div className="stat-card">
+            <div className="summary-card">
               <span>Vertices</span>
               <strong>{countByType(computation, "edge")}</strong>
             </div>
-            <div className="stat-card">
+            <div className="summary-card">
               <span>Edge Midpoints</span>
               <strong>{countByType(computation, "line")}</strong>
             </div>
-            <div className="stat-card">
+            <div className="summary-card">
               <span>Face Centers</span>
               <strong>{countByType(computation, "poly")}</strong>
             </div>
           </div>
+
+          <div className="detail-stack">
+            <div className="detail-card">
+              <span className="detail-label">Selected point</span>
+              <strong>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "None"}</strong>
+              <p>{selectedPoint ? formatVector(selectedPoint.fractional) : "Click any point in the table or viewer."}</p>
+            </div>
+            <div className="detail-card">
+              <span className="detail-label">K-path</span>
+              <strong>
+                {validKPathCount} valid / {kPath.length} total
+              </strong>
+              <p>{kPath.length > 0 ? "Ordered reciprocal-space route is ready for editing and export." : "No K-path points added yet."}</p>
+            </div>
+          </div>
         </section>
 
-        <section className="grid-layout">
-          <div className="panel input-panel">
-            <div className="panel-header">
-              <h2>POSCAR Input</h2>
-              <p>Directly parse a VASP POSCAR without any server round-trip.</p>
-            </div>
+        <SpecialPointTable
+          computation={computation}
+          selectedPointId={selectedPointId}
+          onSelectPoint={setSelectedPointId}
+        />
 
-            <textarea
-              aria-label="POSCAR input"
-              className="poscar-textarea"
-              value={poscarText}
-              onChange={(event) => setPoscarText(event.target.value)}
-              spellCheck={false}
-            />
+        <KPathEditor
+          selectedPoint={selectedPoint}
+          kPath={kPath}
+          resolvedKPath={resolvedKPath}
+          onAddSelected={handleAddSelectedPointToKPath}
+          onAddCustom={handleAddCustomKPoint}
+          onRemoveLast={() => setKPath((current) => current.slice(0, -1))}
+          onClear={() => setKPath([])}
+          onUpdatePoint={handleUpdateKPathPoint}
+          onMovePoint={handleMoveKPathPoint}
+          onRemovePoint={handleRemoveKPathPoint}
+        />
 
-            <div className="controls-row">
-              <button className="primary-button" type="button" onClick={handleRender}>
-                Render Brillouin Zone
-              </button>
-              <button className="ghost-button" type="button" onClick={() => setPoscarText(SILICON_SINGLE_CRYSTAL_SAMPLE)}>
-                Load Si sample
-              </button>
-              <label className="toggle-row">
-                <input
-                  checked={showVectors}
-                  onChange={(event) => setShowVectors(event.target.checked)}
-                  type="checkbox"
-                />
-                <span>Show reciprocal vectors</span>
-              </label>
-            </div>
+        <section className="panel notes-panel">
+          <div className="panel-header">
+            <h2>Implementation Notes</h2>
+            <p>Behavior is aligned to the XCrySDen flow where practical in a browser-only app.</p>
+          </div>
+          <ul className="notes-list">
+            <li>The BZ is built as the Wigner-Seitz cell of the reciprocal lattice around Gamma.</li>
+            <li>Special points follow the XCrySDen extraction categories from the final polyhedron.</li>
+            <li>K-path editing follows the XCrySDen idea of selecting ordered BZ points and editing the resulting coordinates.</li>
+            <li>No label lookup table is used in this version; labels stay fully user-editable.</li>
+            <li>Only 3D periodic POSCAR inputs are supported in the current implementation.</li>
+          </ul>
+        </section>
+      </aside>
 
-            {error ? <div className="error-banner">{error}</div> : null}
-
-            {computation ? (
-              <div className="details-grid">
-                <div>
-                  <span className="detail-label">Structure</span>
-                  <strong>{computation.parsed.title}</strong>
-                </div>
-                <div>
-                  <span className="detail-label">Species</span>
-                  <strong>{computation.parsed.species.join(", ")}</strong>
-                </div>
-                <div>
-                  <span className="detail-label">Coordinate mode</span>
-                  <strong>{computation.parsed.coordinateMode}</strong>
-                </div>
-                <div>
-                  <span className="detail-label">Total points</span>
-                  <strong>{computation.points.length}</strong>
-                </div>
-              </div>
-            ) : null}
+      <main className="workspace-panel">
+        <div className="workspace-header">
+          <div className="workspace-copy">
+            <span className="workspace-label">Visualization</span>
+            <h2>First Brillouin Zone Viewer</h2>
+            <p>Drag to rotate, scroll to zoom, and click points to synchronize the left-side tool panels.</p>
           </div>
 
+          <div className="workspace-meta">
+            <div className="workspace-chip">
+              <span>Structure</span>
+              <strong>{computation?.parsed.title ?? "Waiting for render"}</strong>
+            </div>
+            <div className="workspace-chip">
+              <span>Selected</span>
+              <strong>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "None"}</strong>
+            </div>
+            <div className="workspace-chip">
+              <span>Points</span>
+              <strong>{computation?.points.length ?? 0}</strong>
+            </div>
+            <div className="workspace-chip">
+              <span>K-path</span>
+              <strong>{kPath.length}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="workspace-stage">
           <BzCanvas
             computation={computation}
             kPath={resolvedKPath}
             selectedPointId={selectedPointId}
             onSelectPoint={setSelectedPointId}
             showReciprocalVectors={showVectors}
+            viewResetToken={viewResetToken}
           />
-        </section>
-
-        <section className="grid-layout lower-grid">
-          <div className="stack-layout">
-            <SpecialPointTable
-              computation={computation}
-              selectedPointId={selectedPointId}
-              onSelectPoint={setSelectedPointId}
-            />
-            <KPathEditor
-              selectedPoint={selectedPoint}
-              kPath={kPath}
-              resolvedKPath={resolvedKPath}
-              onAddSelected={handleAddSelectedPointToKPath}
-              onAddCustom={handleAddCustomKPoint}
-              onRemoveLast={() => setKPath((current) => current.slice(0, -1))}
-              onClear={() => setKPath([])}
-              onUpdatePoint={handleUpdateKPathPoint}
-              onMovePoint={handleMoveKPathPoint}
-              onRemovePoint={handleRemoveKPathPoint}
-            />
-          </div>
-
-          <div className="panel notes-panel">
-            <div className="panel-header">
-              <h2>Implementation Notes</h2>
-              <p>Behavior is aligned to the XCrySDen flow where practical in a browser-only app.</p>
-            </div>
-            <ul className="notes-list">
-              <li>The BZ is built as the Wigner-Seitz cell of the reciprocal lattice around Gamma.</li>
-              <li>Special points follow the XCrySDen extraction categories from the final polyhedron.</li>
-              <li>K-path editing follows the XCrySDen idea of selecting ordered BZ points and editing the resulting coordinates.</li>
-              <li>No label lookup table is used in this version; labels stay fully user-editable.</li>
-              <li>Only 3D periodic POSCAR inputs are supported in the current implementation.</li>
-            </ul>
-          </div>
-        </section>
+        </div>
       </main>
     </div>
   );

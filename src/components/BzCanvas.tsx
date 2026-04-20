@@ -14,6 +14,7 @@ interface BzCanvasProps {
   kPath: KPathResolvedPoint[];
   onSelectPoint: (pointId: string | null) => void;
   showReciprocalVectors: boolean;
+  viewResetToken: number;
 }
 
 interface Rotation {
@@ -43,6 +44,8 @@ const POINT_RADII: Record<BzPointType, number> = {
   line: 4.5,
   poly: 5
 };
+
+const DEFAULT_ROTATION: Rotation = { x: 0.8, y: -0.65, z: 0.25 };
 
 function rotateVector(vector: Vec3, rotation: Rotation): Vec3 {
   const [x0, y0, z0] = vector;
@@ -94,11 +97,12 @@ export default function BzCanvas({
   selectedPointId,
   kPath,
   onSelectPoint,
-  showReciprocalVectors
+  showReciprocalVectors,
+  viewResetToken
 }: BzCanvasProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [rotation, setRotation] = useState<Rotation>({ x: 0.8, y: -0.65, z: 0.25 });
+  const [rotation, setRotation] = useState<Rotation>(DEFAULT_ROTATION);
   const [zoom, setZoom] = useState(1);
   const interactionRef = useRef<{ dragging: boolean; moved: boolean; x: number; y: number }>({
     dragging: false,
@@ -107,6 +111,14 @@ export default function BzCanvas({
     y: 0
   });
   const projectedPointsRef = useRef<ProjectedPoint[]>([]);
+
+  useEffect(() => {
+    if (viewResetToken === 0) {
+      return;
+    }
+    setRotation(DEFAULT_ROTATION);
+    setZoom(1);
+  }, [viewResetToken]);
 
   useEffect(() => {
     if (!computation) {
@@ -400,15 +412,6 @@ export default function BzCanvas({
 
   return (
     <div className="viewer-panel">
-      <div className="viewer-toolbar">
-        <div>
-          <strong>Brillouin Zone</strong>
-          <span>XCrySDen-style special points plus editable K-path overlay</span>
-        </div>
-        <button className="ghost-button" type="button" onClick={() => setRotation({ x: 0.8, y: -0.65, z: 0.25 })}>
-          Reset view
-        </button>
-      </div>
       <div className="viewer-canvas-shell" ref={containerRef}>
         <canvas
           ref={canvasRef}
