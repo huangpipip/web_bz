@@ -469,6 +469,8 @@ code {
 .viewer-overlay-card strong {
   display: block;
   color: #f7fbff;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .viewer-overlay-eyebrow {
@@ -481,10 +483,56 @@ code {
   text-transform: uppercase;
 }
 
+.viewer-overlay-copy {
+  min-width: 0;
+}
+
 .viewer-overlay-actions {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
+}
+
+.viewer-overlay-action {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  color: #f8fbff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.viewer-overlay-action:hover {
+  transform: translateY(-1px);
+}
+
+.viewer-overlay-action:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.viewer-overlay-action-add {
+  background: rgba(126, 190, 255, 0.22);
+  border: 1px solid rgba(126, 190, 255, 0.58);
+}
+
+.viewer-overlay-action-remove {
+  background: rgba(255, 154, 77, 0.18);
+  border: 1px solid rgba(255, 154, 77, 0.5);
+}
+
+.viewer-overlay-action-remove:disabled {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(227, 236, 255, 0.36);
 }
 
 .point-table {

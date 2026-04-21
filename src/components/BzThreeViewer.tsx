@@ -114,6 +114,12 @@ function formatPointType(type: BzPointType): string {
   }
 }
 
+function formatPointLabel(point: NonNullable<BzComputation["points"][number]>): string {
+  return `${formatPointType(point.type)}  ${point.fractional
+    .map((value) => value.toFixed(4))
+    .join(", ")}`;
+}
+
 function getViewerMetrics(
   camera: THREE.PerspectiveCamera | null,
   renderer: THREE.WebGLRenderer | null,
@@ -506,25 +512,27 @@ export default function BzThreeViewer({
         ) : null}
         {computation && selectedPoint ? (
           <div className="viewer-overlay-card">
-            <div>
+            <div className="viewer-overlay-copy">
               <span className="viewer-overlay-eyebrow">{formatPointType(selectedPoint.type)}</span>
-              <strong>{selectedPoint.fractional.map((value) => value.toFixed(4)).join(", ")}</strong>
+              <strong>{formatPointLabel(selectedPoint)}</strong>
             </div>
             <div className="viewer-overlay-actions">
               <button
-                className="ghost-button"
+                className="viewer-overlay-action viewer-overlay-action-remove"
                 disabled={selectedPointCount === 0}
                 type="button"
                 onClick={() => onRemovePointFromKPath(selectedPoint.id)}
+                aria-label="Remove selected point from K-path"
               >
-                Remove
+                -
               </button>
               <button
-                className="primary-button"
+                className="viewer-overlay-action viewer-overlay-action-add"
                 type="button"
                 onClick={() => onAddPointToKPath(selectedPoint.id)}
+                aria-label="Add selected point to K-path"
               >
-                Add to K-path
+                +
               </button>
             </div>
           </div>
