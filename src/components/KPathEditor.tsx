@@ -1,5 +1,5 @@
-import type { ChangeEvent, JSX } from "react";
-import { formatKPathExport } from "../lib/kpath";
+import { useState, type ChangeEvent, type JSX } from "react";
+import { canFormatVaspKpoints, formatKPathExport, type KPathExportFormat } from "../lib/kpath";
 import type { BzSpecialPoint, KPathPointDraft, KPathResolvedPoint } from "../lib/types";
 
 interface KPathEditorProps {
@@ -51,7 +51,12 @@ export default function KPathEditor({
   onMovePoint,
   onRemovePoint
 }: KPathEditorProps): JSX.Element {
-  const exportText = formatKPathExport(kPath);
+  const [exportFormat, setExportFormat] = useState<KPathExportFormat>("vasp");
+  const [vaspLinePointsText, setVaspLinePointsText] = useState("50");
+  const vaspLinePoints = Number(vaspLinePointsText);
+  const normalizedVaspLinePoints = Number.isFinite(vaspLinePoints) && vaspLinePoints > 0 ? vaspLinePoints : 50;
+  const canExportVasp = exportFormat !== "vasp" || canFormatVaspKpoints(kPath);
+  const exportText = canExportVasp ? formatKPathExport(kPath, exportFormat, normalizedVaspLinePoints) : "";
   const validPointCount = resolvedKPath.filter((point) => !point.error).length;
 
   return (
@@ -59,7 +64,7 @@ export default function KPathEditor({
       <div className="panel-header">
         <div>
           <h2>K-Path Editor</h2>
-          <p>Edit the route as an ordered list of reciprocal fractional points.</p>
+          <p>Use the viewer + and - controls, or select table points and refine the route.</p>
         </div>
         <div className="panel-chip">{kPath.length} points</div>
       </div>
@@ -85,14 +90,14 @@ export default function KPathEditor({
             Selected source: {pointTypeLabel(selectedPoint.type)} ({selectedPoint.fractional.map((value) => value.toFixed(4)).join(", ")})
           </span>
         ) : (
-          <span>Select a BZ special point to add it into the K route.</span>
+          <span>Click a viewer point, then use the + control beside its coordinates.</span>
         )}
         <span>{validPointCount} valid / {kPath.length} total</span>
       </div>
 
       {kPath.length === 0 ? (
         <div className="panel-empty">
-          <p>No K-path points yet. Select a special point and add it, or create a custom row.</p>
+          <p>No K-path points yet. Select a viewer point and use +, add the selected point, or create a custom row.</p>
         </div>
       ) : (
         <div className="kpath-list">
@@ -159,9 +164,46 @@ export default function KPathEditor({
         <div className="panel-header">
           <div>
             <h2>K-Path Export</h2>
-            <p>Reciprocal fractional coordinates followed by editable labels.</p>
+            <p>
+              {exportFormat === "vasp"
+                ? "Complete VASP KPOINTS Line-mode file with paired segment endpoints."
+                : "wannier90-style fractional coordinates followed by labels."}
+            </p>
           </div>
         </div>
+        <div className="export-controls">
+          <div className="export-format-control" aria-label="K-path export format">
+            <button
+              className={exportFormat === "vasp" ? "format-option format-option-active" : "format-option"}
+              type="button"
+              onClick={() => setExportFormat("vasp")}
+            >
+              VASP
+            </button>
+            <button
+              className={exportFormat === "wannier90" ? "format-option format-option-active" : "format-option"}
+              type="button"
+              onClick={() => setExportFormat("wannier90")}
+            >
+              wannier90
+            </button>
+          </div>
+          {exportFormat === "vasp" ? (
+            <label className="export-grid-field">
+              <span>Grid per segment</span>
+              <input
+                min="1"
+                step="1"
+                type="number"
+                value={vaspLinePointsText}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setVaspLinePointsText(event.target.value)}
+              />
+            </label>
+          ) : null}
+        </div>
+        {exportFormat === "vasp" && !canExportVasp ? (
+          <div className="kpath-error">VASP Line-mode requires complete endpoint pairs. Add one more K-path point.</div>
+        ) : null}
         <textarea className="kpath-export-textarea" readOnly value={exportText} />
       </div>
     </div>

@@ -12,6 +12,8 @@ interface BzCanvasProps {
   computation: BzComputation | null;
   selectedPointId: string | null;
   kPath: KPathResolvedPoint[];
+  onAddPointToKPath: (pointId: string) => void;
+  onRemovePointFromKPath: (pointId: string) => void;
   onSelectPoint: (pointId: string | null) => void;
   showReciprocalVectors: boolean;
   viewResetToken: number;
@@ -29,6 +31,16 @@ interface ProjectedPoint {
   y: number;
   z: number;
   radius: number;
+}
+
+interface LabelActionHitArea {
+  action: "add" | "remove";
+  pointId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  disabled: boolean;
 }
 
 const POINT_COLORS: Record<BzPointType, string> = {
@@ -92,10 +104,29 @@ function getTypeLabel(type: BzPointType): string {
   }
 }
 
+function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) {
+    return text;
+  }
+
+  const ellipsis = "...";
+  if (ctx.measureText(ellipsis).width > maxWidth) {
+    return "";
+  }
+
+  let next = text;
+  while (next.length > 0 && ctx.measureText(`${next}${ellipsis}`).width > maxWidth) {
+    next = next.slice(0, -1);
+  }
+  return `${next}${ellipsis}`;
+}
+
 export default function BzCanvas({
   computation,
   selectedPointId,
   kPath,
+  onAddPointToKPath,
+  onRemovePointFromKPath,
   onSelectPoint,
   showReciprocalVectors,
   viewResetToken
@@ -111,6 +142,7 @@ export default function BzCanvas({
     y: 0
   });
   const projectedPointsRef = useRef<ProjectedPoint[]>([]);
+  const labelActionHitAreasRef = useRef<LabelActionHitArea[]>([]);
 
   useEffect(() => {
     if (viewResetToken === 0) {
@@ -146,6 +178,7 @@ export default function BzCanvas({
     };
 
     const draw = (ctx: CanvasRenderingContext2D, width: number, height: number): void => {
+      labelActionHitAreasRef.current = [];
       ctx.clearRect(0, 0, width, height);
 
       ctx.fillStyle = "rgba(9, 18, 30, 0.96)";
@@ -311,18 +344,24 @@ export default function BzCanvas({
         const selectedPoint = computation.points.find((point) => point.id === selectedPointId);
         const projectedPoint = projectedPoints.find((entry) => entry.point.id === selectedPointId);
         if (selectedPoint && projectedPoint) {
+          const selectedPathCount = kPath.filter((point) => point.sourcePointId === selectedPoint.id).length;
           const label = `${getTypeLabel(selectedPoint.type)}  ${selectedPoint.fractional
             .map((value) => value.toFixed(4))
             .join(", ")}`;
 
           ctx.font = "13px 'Avenir Next', 'Segoe UI', sans-serif";
           const paddingX = 10;
-          const paddingY = 8;
-          const textWidth = ctx.measureText(label).width;
-          const boxWidth = textWidth + paddingX * 2;
-          const boxHeight = 30;
-          const boxX = clamp(projectedPoint.x + 12, 12, width - boxWidth - 12);
-          const boxY = clamp(projectedPoint.y - 38, 12, height - boxHeight - 12);
+          const buttonSize = 22;
+          const buttonGap = 6;
+          const buttonGroupWidth = buttonSize * 2 + buttonGap * 2;
+          const maxBoxWidth = Math.max(132, width - 24);
+          const availableTextWidth = Math.max(32, maxBoxWidth - paddingX * 2 - buttonGroupWidth);
+          const fittedLabel = fitCanvasText(ctx, label, availableTextWidth);
+          const textWidth = ctx.measureText(fittedLabel).width;
+          const boxWidth = Math.min(maxBoxWidth, textWidth + paddingX * 2 + buttonGroupWidth);
+          const boxHeight = 34;
+          const boxX = clamp(projectedPoint.x + 12, 12, Math.max(12, width - boxWidth - 12));
+          const boxY = clamp(projectedPoint.y - 38, 12, Math.max(12, height - boxHeight - 12));
 
           ctx.fillStyle = "rgba(9, 18, 30, 0.9)";
           ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
@@ -330,7 +369,60 @@ export default function BzCanvas({
           ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
           ctx.fillStyle = "#f4f8ff";
-          ctx.fillText(label, boxX + paddingX, boxY + 19);
+          ctx.fillText(fittedLabel, boxX + paddingX, boxY + 21);
+
+          const removeButtonX = boxX + paddingX + textWidth + buttonGap;
+          const addButtonX = removeButtonX + buttonSize + buttonGap;
+          const buttonY = boxY + (boxHeight - buttonSize) / 2;
+          const actions: LabelActionHitArea[] = [
+            {
+              action: "remove",
+              pointId: selectedPoint.id,
+              x: removeButtonX,
+              y: buttonY,
+              width: buttonSize,
+              height: buttonSize,
+              disabled: selectedPathCount === 0
+            },
+            {
+              action: "add",
+              pointId: selectedPoint.id,
+              x: addButtonX,
+              y: buttonY,
+              width: buttonSize,
+              height: buttonSize,
+              disabled: false
+            }
+          ];
+
+          for (const action of actions) {
+            ctx.beginPath();
+            ctx.roundRect(action.x, action.y, action.width, action.height, 6);
+            ctx.fillStyle =
+              action.action === "add"
+                ? "rgba(126, 190, 255, 0.22)"
+                : action.disabled
+                  ? "rgba(255, 255, 255, 0.04)"
+                  : "rgba(255, 154, 77, 0.18)";
+            ctx.fill();
+            ctx.strokeStyle =
+              action.action === "add"
+                ? "rgba(126, 190, 255, 0.58)"
+                : action.disabled
+                  ? "rgba(255, 255, 255, 0.12)"
+                  : "rgba(255, 154, 77, 0.5)";
+            ctx.stroke();
+
+            ctx.fillStyle = action.disabled ? "rgba(227, 236, 255, 0.36)" : "#f8fbff";
+            ctx.font = "16px 'Avenir Next', 'Segoe UI', sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(action.action === "add" ? "+" : "-", action.x + action.width / 2, action.y + action.height / 2);
+            ctx.textAlign = "start";
+            ctx.textBaseline = "alphabetic";
+          }
+
+          labelActionHitAreasRef.current = actions;
         }
       }
     };
@@ -398,11 +490,34 @@ export default function BzCanvas({
     const x = event.clientX - bounds.left;
     const y = event.clientY - bounds.top;
 
+    const actionHit = labelActionHitAreasRef.current.find(
+      (area) =>
+        x >= area.x &&
+        x <= area.x + area.width &&
+        y >= area.y &&
+        y <= area.y + area.height
+    );
+    if (actionHit) {
+      if (!actionHit.disabled) {
+        if (actionHit.action === "add") {
+          onAddPointToKPath(actionHit.pointId);
+        } else {
+          onRemovePointFromKPath(actionHit.pointId);
+        }
+      }
+      return;
+    }
+
     const hit = [...projectedPointsRef.current]
       .sort((left, right) => right.z - left.z)
       .find((point) => Math.hypot(point.x - x, point.y - y) <= point.radius + 6);
 
-    onSelectPoint(hit?.id ?? null);
+    if (!hit) {
+      onSelectPoint(null);
+      return;
+    }
+
+    onSelectPoint(hit.id);
   };
 
   const handleWheel = (event: WheelEvent<HTMLCanvasElement>): void => {

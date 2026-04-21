@@ -78,12 +78,31 @@ export default function App(): JSX.Element {
       return;
     }
 
+    setKPath((current) => [...current, createKPathPointFromSpecialPoint(selectedPoint, current.length)]);
+  };
+
+  const handleAddPointToKPath = (pointId: string): void => {
+    const point = computation?.points.find((candidate) => candidate.id === pointId);
+    if (!point) {
+      return;
+    }
+
+    setKPath((current) => [...current, createKPathPointFromSpecialPoint(point, current.length)]);
+  };
+
+  const handleRemovePointFromKPath = (pointId: string): void => {
     setKPath((current) => {
-      const lastPoint = current[current.length - 1];
-      if (lastPoint?.sourcePointId === selectedPoint.id) {
-        return current.slice(0, -1);
+      let index = -1;
+      for (let currentIndex = current.length - 1; currentIndex >= 0; currentIndex -= 1) {
+        if (current[currentIndex].sourcePointId === pointId) {
+          index = currentIndex;
+          break;
+        }
       }
-      return [...current, createKPathPointFromSpecialPoint(selectedPoint, current.length)];
+      if (index === -1) {
+        return current;
+      }
+      return current.filter((_, currentIndex) => currentIndex !== index);
     });
   };
 
@@ -196,6 +215,19 @@ export default function App(): JSX.Element {
           )}
         </section>
 
+        <KPathEditor
+          selectedPoint={selectedPoint}
+          kPath={kPath}
+          resolvedKPath={resolvedKPath}
+          onAddSelected={handleAddSelectedPointToKPath}
+          onAddCustom={handleAddCustomKPoint}
+          onRemoveLast={() => setKPath((current) => current.slice(0, -1))}
+          onClear={() => setKPath([])}
+          onUpdatePoint={handleUpdateKPathPoint}
+          onMovePoint={handleMoveKPathPoint}
+          onRemovePoint={handleRemoveKPathPoint}
+        />
+
         <section className="panel summary-panel">
           <div className="panel-header">
             <div>
@@ -243,19 +275,6 @@ export default function App(): JSX.Element {
           computation={computation}
           selectedPointId={selectedPointId}
           onSelectPoint={setSelectedPointId}
-        />
-
-        <KPathEditor
-          selectedPoint={selectedPoint}
-          kPath={kPath}
-          resolvedKPath={resolvedKPath}
-          onAddSelected={handleAddSelectedPointToKPath}
-          onAddCustom={handleAddCustomKPoint}
-          onRemoveLast={() => setKPath((current) => current.slice(0, -1))}
-          onClear={() => setKPath([])}
-          onUpdatePoint={handleUpdateKPathPoint}
-          onMovePoint={handleMoveKPathPoint}
-          onRemovePoint={handleRemoveKPathPoint}
         />
 
         <section className="panel notes-panel">
@@ -306,6 +325,8 @@ export default function App(): JSX.Element {
             computation={computation}
             kPath={resolvedKPath}
             selectedPointId={selectedPointId}
+            onAddPointToKPath={handleAddPointToKPath}
+            onRemovePointFromKPath={handleRemovePointFromKPath}
             onSelectPoint={setSelectedPointId}
             showReciprocalVectors={showVectors}
             viewResetToken={viewResetToken}

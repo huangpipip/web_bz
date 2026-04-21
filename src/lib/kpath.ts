@@ -7,6 +7,10 @@ import type {
   Vec3
 } from "./types";
 
+export type KPathExportFormat = "vasp" | "wannier90";
+
+const DEFAULT_VASP_LINE_POINTS = 50;
+
 function createPointId(): string {
   return `kpath-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 }
@@ -76,15 +80,57 @@ export function resolveKPathPoints(
   });
 }
 
-export function formatKPathExport(points: KPathPointDraft[]): string {
+function formatKPathLine(point: KPathPointDraft, index: number, separator: string): string {
+  const label = point.label.trim() || `K.${index + 1}`;
+  const coordinates = `${point.fractionalText[0]} ${point.fractionalText[1]} ${point.fractionalText[2]}`;
+  return `${coordinates}${separator}${label}`;
+}
+
+function sanitizeVaspLinePoints(pointsPerLine: number): number {
+  if (!Number.isFinite(pointsPerLine)) {
+    return DEFAULT_VASP_LINE_POINTS;
+  }
+  return Math.max(1, Math.floor(pointsPerLine));
+}
+
+export function canFormatVaspKpoints(points: KPathPointDraft[]): boolean {
+  return points.length >= 2 && points.length % 2 === 0;
+}
+
+export function formatKPathExport(
+  points: KPathPointDraft[],
+  format: KPathExportFormat = "wannier90",
+  vaspLinePoints = DEFAULT_VASP_LINE_POINTS
+): string {
   if (points.length === 0) {
     return "";
   }
 
+  if (format === "vasp") {
+    if (!canFormatVaspKpoints(points)) {
+      return "";
+    }
+
+    const linePoints = sanitizeVaspLinePoints(vaspLinePoints);
+    const lines = [
+      "KPOINTS",
+      `${linePoints} !${linePoints} grid`,
+      "Line-mode",
+      "reciprocal"
+    ];
+
+    for (let index = 0; index < points.length; index += 2) {
+      lines.push(formatKPathLine(points[index], index, " ! "));
+      lines.push(formatKPathLine(points[index + 1], index + 1, " ! "));
+      if (index + 2 < points.length) {
+        lines.push("");
+      }
+    }
+
+    return lines.join("\n");
+  }
+
   return points
-    .map((point, index) => {
-      const label = point.label.trim() || `K.${index + 1}`;
-      return `${point.fractionalText[0]} ${point.fractionalText[1]} ${point.fractionalText[2]} ${label}`;
-    })
+    .map((point, index) => formatKPathLine(point, index, " "))
     .join("\n");
 }

@@ -45,7 +45,7 @@ describe("kpath utilities", () => {
     expect(resolved[0].cart).toBeNull();
   });
 
-  it("formats K-path export lines", () => {
+  it("formats wannier90 K-path export lines by default", () => {
     const text = formatKPathExport([
       {
         id: "1",
@@ -61,5 +61,55 @@ describe("kpath utilities", () => {
 
     expect(text).toContain("0.00000 0.00000 0.00000 GAMMA");
     expect(text).toContain("0.50000 0.00000 0.00000 X");
+  });
+
+  it("formats complete VASP KPOINTS line-mode files", () => {
+    const text = formatKPathExport(
+      [
+        {
+          id: "1",
+          label: "L",
+          fractionalText: ["0.00000", "0.50000", "0.00000"]
+        },
+        {
+          id: "2",
+          label: "Γ",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        },
+        {
+          id: "3",
+          label: "Γ",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        },
+        {
+          id: "4",
+          label: "F",
+          fractionalText: ["0.50000", "0.00000", "0.00000"]
+        }
+      ],
+      "vasp",
+      50
+    );
+
+    expect(text).toContain("KPOINTS\n50 !50 grid\nLine-mode\nreciprocal");
+    expect(text).toContain("0.00000 0.50000 0.00000 ! L");
+    expect(text).toContain("0.00000 0.00000 0.00000 ! Γ");
+    expect(text).toContain("\n\n0.00000 0.00000 0.00000 ! Γ");
+    expect(text).toContain("0.50000 0.00000 0.00000 ! F");
+  });
+
+  it("does not format incomplete VASP line-mode segments", () => {
+    const text = formatKPathExport(
+      [
+        {
+          id: "1",
+          label: "Γ",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        }
+      ],
+      "vasp"
+    );
+
+    expect(text).toBe("");
   });
 });

@@ -171,7 +171,8 @@ code {
 
 .poscar-textarea,
 .kpath-export-textarea,
-.kpath-field input {
+.kpath-field input,
+.export-grid-field input {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(5, 11, 18, 0.82);
@@ -530,6 +531,51 @@ code {
 
 .kpath-export {
   margin-top: 18px;
+}
+
+.export-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.export-format-control {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(5, 11, 18, 0.52);
+}
+
+.format-option {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.format-option-active {
+  background: rgba(126, 190, 255, 0.18);
+  color: #f8fbff;
+}
+
+.export-grid-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.export-grid-field input {
+  width: 76px;
+  padding: 8px 10px;
+  border-radius: 12px;
 }
 
 .kpath-export-textarea {
