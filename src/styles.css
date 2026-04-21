@@ -315,6 +315,13 @@ code {
   margin-bottom: 16px;
 }
 
+.workspace-header-side {
+  display: grid;
+  gap: 12px;
+  justify-items: end;
+  min-width: min(420px, 100%);
+}
+
 .workspace-copy {
   min-width: 0;
 }
@@ -345,12 +352,44 @@ code {
   display: grid;
   grid-template-columns: repeat(2, minmax(120px, 1fr));
   gap: 10px;
-  min-width: min(420px, 100%);
+  min-width: 100%;
 }
 
 .workspace-stage {
   min-height: 0;
   height: 100%;
+}
+
+.viewer-tabs {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.viewer-tab {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.viewer-tab:hover {
+  transform: translateY(-1px);
+  color: #f4f8ff;
+}
+
+.viewer-tab-active {
+  background: linear-gradient(135deg, rgba(126, 190, 255, 0.22) 0%, rgba(255, 154, 77, 0.2) 100%);
+  color: #f8fbff;
 }
 
 .viewer-panel {
@@ -393,6 +432,59 @@ code {
   place-items: center;
   padding: 24px;
   pointer-events: none;
+}
+
+.viewer-three-shell {
+  background:
+    radial-gradient(circle at 50% 16%, rgba(126, 190, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 70% 30%, rgba(255, 154, 77, 0.09), transparent 24%),
+    linear-gradient(180deg, rgba(7, 15, 25, 0.95) 0%, rgba(4, 8, 14, 0.98) 100%);
+}
+
+.viewer-three-stage,
+.viewer-three-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.viewer-overlay-card {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(8, 16, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.viewer-overlay-card strong {
+  display: block;
+  color: #f7fbff;
+}
+
+.viewer-overlay-eyebrow {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.viewer-overlay-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .point-table {
@@ -615,6 +707,12 @@ code {
     flex-direction: column;
   }
 
+  .workspace-header-side {
+    justify-items: stretch;
+    min-width: 0;
+    width: 100%;
+  }
+
   .workspace-meta {
     width: 100%;
     min-width: 0;
@@ -640,6 +738,14 @@ code {
   .workspace-meta,
   .kpath-coordinates {
     grid-template-columns: 1fr;
+  }
+
+  .viewer-overlay-card {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .point-table-head,

@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { Suspense, lazy, useState, type JSX } from "react";
 import BzCanvas from "./components/BzCanvas";
 import KPathEditor from "./components/KPathEditor";
 import SpecialPointTable from "./components/SpecialPointTable";
@@ -8,6 +8,7 @@ import type { BzComputation, KPathPointDraft } from "./lib/types";
 import { SILICON_SINGLE_CRYSTAL_SAMPLE } from "./lib/samples";
 
 const INITIAL_POSCAR = SILICON_SINGLE_CRYSTAL_SAMPLE;
+const BzThreeViewer = lazy(() => import("./components/BzThreeViewer"));
 
 function countByType(computation: BzComputation | null, type: "center" | "edge" | "line" | "poly"): number {
   if (!computation) {
@@ -53,6 +54,7 @@ export default function App(): JSX.Element {
   const [kPath, setKPath] = useState<KPathPointDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [viewResetToken, setViewResetToken] = useState(0);
+  const [activeViewer, setActiveViewer] = useState<"classic" | "three">("classic");
 
   const selectedPoint = computation?.points.find((point) => point.id === selectedPointId) ?? null;
   const resolvedKPath = computation ? resolveKPathPoints(kPath, computation.reciprocal) : [];
@@ -297,40 +299,92 @@ export default function App(): JSX.Element {
           <div className="workspace-copy">
             <span className="workspace-label">Visualization</span>
             <h2>First Brillouin Zone Viewer</h2>
-            <p>Drag to rotate, scroll to zoom, and click points to synchronize the left-side tool panels.</p>
+            <p>
+              {activeViewer === "classic"
+                ? "Drag to rotate, scroll to zoom, and click points to synchronize the left-side tool panels."
+                : "Orbit the Three.js scene for stronger depth cues, then select points and edit the K-path from the same shared state."}
+            </p>
           </div>
 
-          <div className="workspace-meta">
-            <div className="workspace-chip">
-              <span>Structure</span>
-              <strong>{computation?.parsed.title ?? "Waiting for render"}</strong>
+          <div className="workspace-header-side">
+            <div className="viewer-tabs" aria-label="Viewer mode tabs" role="tablist">
+              <button
+                aria-selected={activeViewer === "classic"}
+                className={activeViewer === "classic" ? "viewer-tab viewer-tab-active" : "viewer-tab"}
+                role="tab"
+                type="button"
+                onClick={() => setActiveViewer("classic")}
+              >
+                Classic
+              </button>
+              <button
+                aria-selected={activeViewer === "three"}
+                className={activeViewer === "three" ? "viewer-tab viewer-tab-active" : "viewer-tab"}
+                role="tab"
+                type="button"
+                onClick={() => setActiveViewer("three")}
+              >
+                3D
+              </button>
             </div>
-            <div className="workspace-chip">
-              <span>Selected</span>
-              <strong>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "None"}</strong>
-            </div>
-            <div className="workspace-chip">
-              <span>Points</span>
-              <strong>{computation?.points.length ?? 0}</strong>
-            </div>
-            <div className="workspace-chip">
-              <span>K-path</span>
-              <strong>{kPath.length}</strong>
+
+            <div className="workspace-meta">
+              <div className="workspace-chip">
+                <span>Structure</span>
+                <strong>{computation?.parsed.title ?? "Waiting for render"}</strong>
+              </div>
+              <div className="workspace-chip">
+                <span>Selected</span>
+                <strong>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "None"}</strong>
+              </div>
+              <div className="workspace-chip">
+                <span>Points</span>
+                <strong>{computation?.points.length ?? 0}</strong>
+              </div>
+              <div className="workspace-chip">
+                <span>K-path</span>
+                <strong>{kPath.length}</strong>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="workspace-stage">
-          <BzCanvas
-            computation={computation}
-            kPath={resolvedKPath}
-            selectedPointId={selectedPointId}
-            onAddPointToKPath={handleAddPointToKPath}
-            onRemovePointFromKPath={handleRemovePointFromKPath}
-            onSelectPoint={setSelectedPointId}
-            showReciprocalVectors={showVectors}
-            viewResetToken={viewResetToken}
-          />
+          {activeViewer === "classic" ? (
+            <BzCanvas
+              computation={computation}
+              kPath={resolvedKPath}
+              selectedPointId={selectedPointId}
+              onAddPointToKPath={handleAddPointToKPath}
+              onRemovePointFromKPath={handleRemovePointFromKPath}
+              onSelectPoint={setSelectedPointId}
+              showReciprocalVectors={showVectors}
+              viewResetToken={viewResetToken}
+            />
+          ) : (
+            <Suspense
+              fallback={
+                <div className="viewer-panel">
+                  <div className="viewer-canvas-shell">
+                    <div className="viewer-empty">
+                      <p>Loading Three.js viewer…</p>
+                    </div>
+                  </div>
+                </div>
+              }
+            >
+              <BzThreeViewer
+                computation={computation}
+                kPath={resolvedKPath}
+                selectedPointId={selectedPointId}
+                onAddPointToKPath={handleAddPointToKPath}
+                onRemovePointFromKPath={handleRemovePointFromKPath}
+                onSelectPoint={setSelectedPointId}
+                showReciprocalVectors={showVectors}
+                viewResetToken={viewResetToken}
+              />
+            </Suspense>
+          )}
         </div>
       </main>
     </div>
