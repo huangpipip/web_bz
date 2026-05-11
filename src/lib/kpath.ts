@@ -94,7 +94,7 @@ function sanitizeVaspLinePoints(pointsPerLine: number): number {
 }
 
 export function canFormatVaspKpoints(points: KPathPointDraft[]): boolean {
-  return points.length >= 2 && points.length % 2 === 0;
+  return points.length >= 2;
 }
 
 export function formatKPathExport(
@@ -119,7 +119,7 @@ export function formatKPathExport(
       "reciprocal"
     ];
 
-    for (let index = 0; index < points.length; index += 2) {
+    for (let index = 0; index < points.length - 1; index += 1) {
       lines.push(formatKPathLine(points[index], index, " ! "));
       lines.push(formatKPathLine(points[index + 1], index + 1, " ! "));
       if (index + 2 < points.length) {

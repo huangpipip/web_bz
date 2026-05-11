@@ -166,7 +166,7 @@ export default function KPathEditor({
             <h2>K-Path Export</h2>
             <p>
               {exportFormat === "vasp"
-                ? "Complete VASP KPOINTS Line-mode file with paired segment endpoints."
+                ? "Complete VASP KPOINTS Line-mode file with continuous adjacent path segments."
                 : "wannier90-style fractional coordinates followed by labels."}
             </p>
           </div>
@@ -202,7 +202,7 @@ export default function KPathEditor({
           ) : null}
         </div>
         {exportFormat === "vasp" && !canExportVasp ? (
-          <div className="kpath-error">VASP Line-mode requires complete endpoint pairs. Add one more K-path point.</div>
+          <div className="kpath-error">VASP Line-mode requires at least two K-path points.</div>
         ) : null}
         <textarea className="kpath-export-textarea" readOnly value={exportText} />
       </div>

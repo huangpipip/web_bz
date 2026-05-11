@@ -63,7 +63,7 @@ describe("kpath utilities", () => {
     expect(text).toContain("0.50000 0.00000 0.00000 X");
   });
 
-  it("formats complete VASP KPOINTS line-mode files", () => {
+  it("formats VASP KPOINTS line-mode files from continuous adjacent path segments", () => {
     const text = formatKPathExport(
       [
         {
@@ -78,11 +78,6 @@ describe("kpath utilities", () => {
         },
         {
           id: "3",
-          label: "Γ",
-          fractionalText: ["0.00000", "0.00000", "0.00000"]
-        },
-        {
-          id: "4",
           label: "F",
           fractionalText: ["0.50000", "0.00000", "0.00000"]
         }
