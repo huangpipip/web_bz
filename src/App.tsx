@@ -297,13 +297,7 @@ export default function App(): JSX.Element {
       <main className="workspace-panel">
         <div className="workspace-header">
           <div className="workspace-copy">
-            <span className="workspace-label">Visualization</span>
             <h2>First Brillouin Zone Viewer</h2>
-            <p>
-              {activeViewer === "classic"
-                ? "Drag to rotate, scroll to zoom, and click points to synchronize the left-side tool panels."
-                : "Orbit the Three.js scene for stronger depth cues, then select points and edit the K-path from the same shared state."}
-            </p>
           </div>
 
           <div className="workspace-header-side">
@@ -329,22 +323,10 @@ export default function App(): JSX.Element {
             </div>
 
             <div className="workspace-meta">
-              <div className="workspace-chip">
-                <span>Structure</span>
-                <strong>{computation?.parsed.title ?? "Waiting for render"}</strong>
-              </div>
-              <div className="workspace-chip">
-                <span>Selected</span>
-                <strong>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "None"}</strong>
-              </div>
-              <div className="workspace-chip">
-                <span>Points</span>
-                <strong>{computation?.points.length ?? 0}</strong>
-              </div>
-              <div className="workspace-chip">
-                <span>K-path</span>
-                <strong>{kPath.length}</strong>
-              </div>
+              <span>{computation?.parsed.title ?? "Waiting for render"}</span>
+              <span>{computation?.points.length ?? 0} points</span>
+              <span>{selectedPoint ? pointTypeLabel(selectedPoint.type) : "No selection"}</span>
+              <span>{kPath.length} K-path</span>
             </div>
           </div>
         </div>
