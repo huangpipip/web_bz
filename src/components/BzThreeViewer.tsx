@@ -217,8 +217,7 @@ export default function BzThreeViewer({
 
     const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 500);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    controls.enableDamping = false;
     controls.enablePan = true;
     controls.minDistance = 1.5;
     controls.maxDistance = 80;

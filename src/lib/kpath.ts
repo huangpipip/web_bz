@@ -7,7 +7,7 @@ import type {
   Vec3
 } from "./types";
 
-export type KPathExportFormat = "vasp" | "wannier90";
+export type KPathExportFormat = "vasp" | "vasp-hybrid" | "wannier90";
 
 const DEFAULT_VASP_LINE_POINTS = 50;
 
@@ -93,8 +93,28 @@ function sanitizeVaspLinePoints(pointsPerLine: number): number {
   return Math.max(1, Math.floor(pointsPerLine));
 }
 
+function sanitizeHybridLinePoints(pointsPerLine: number): number {
+  return Math.max(2, sanitizeVaspLinePoints(pointsPerLine));
+}
+
+function labelForPoint(point: KPathPointDraft, index: number): string {
+  return point.label.trim() || `K.${index + 1}`;
+}
+
+function formatHybridCoordinate(value: number): string {
+  return value.toFixed(8);
+}
+
+function formatHybridKPointLine(coordinates: Vec3, label: string): string {
+  return `${coordinates.map(formatHybridCoordinate).join(" ")} 0 ! ${label}`;
+}
+
 export function canFormatVaspKpoints(points: KPathPointDraft[]): boolean {
   return points.length >= 2;
+}
+
+export function canFormatVaspHybridKpoints(points: KPathPointDraft[]): boolean {
+  return points.length >= 2 && points.every((point) => parseFractionalVector(point.fractionalText) !== null);
 }
 
 export function formatKPathExport(
@@ -128,6 +148,38 @@ export function formatKPathExport(
     }
 
     return lines.join("\n");
+  }
+
+  if (format === "vasp-hybrid") {
+    if (!canFormatVaspHybridKpoints(points)) {
+      return "";
+    }
+
+    const linePoints = sanitizeHybridLinePoints(vaspLinePoints);
+    const labels = points.map(labelForPoint);
+    const fractionalPoints = points.map((point) => parseFractionalVector(point.fractionalText)) as Vec3[];
+    const interpolatedLines: string[] = [];
+
+    for (let index = 0; index < fractionalPoints.length - 1; index += 1) {
+      const start = fractionalPoints[index];
+      const end = fractionalPoints[index + 1];
+      const firstStep = index === 0 ? 0 : 1;
+
+      for (let step = firstStep; step < linePoints; step += 1) {
+        const t = step / (linePoints - 1);
+        const coordinates = start.map((value, axis) => value + (end[axis] - value) * t) as Vec3;
+        const label =
+          step === 0 ? labels[index] : step === linePoints - 1 ? labels[index + 1] : `${labels[index]}-${labels[index + 1]}`;
+        interpolatedLines.push(formatHybridKPointLine(coordinates, label));
+      }
+    }
+
+    return [
+      "KPOINTS",
+      interpolatedLines.length.toString(),
+      "Reciprocal",
+      ...interpolatedLines
+    ].join("\n");
   }
 
   return points

@@ -1,5 +1,10 @@
 import { useState, type ChangeEvent, type JSX } from "react";
-import { canFormatVaspKpoints, formatKPathExport, type KPathExportFormat } from "../lib/kpath";
+import {
+  canFormatVaspHybridKpoints,
+  canFormatVaspKpoints,
+  formatKPathExport,
+  type KPathExportFormat
+} from "../lib/kpath";
 import type { BzSpecialPoint, KPathPointDraft, KPathResolvedPoint } from "../lib/types";
 
 interface KPathEditorProps {
@@ -39,6 +44,17 @@ function handleCoordinateChange(
   onUpdatePoint(draft.id, { fractionalText: next });
 }
 
+function exportDescription(format: KPathExportFormat): string {
+  switch (format) {
+    case "vasp":
+      return "Complete VASP KPOINTS Line-mode file with continuous adjacent path segments.";
+    case "vasp-hybrid":
+      return "Explicit VASP KPOINTS list for hybrid-functional band paths, with zero weights.";
+    case "wannier90":
+      return "wannier90-style fractional coordinates followed by labels.";
+  }
+}
+
 export default function KPathEditor({
   selectedPoint,
   kPath,
@@ -53,11 +69,29 @@ export default function KPathEditor({
 }: KPathEditorProps): JSX.Element {
   const [exportFormat, setExportFormat] = useState<KPathExportFormat>("vasp");
   const [vaspLinePointsText, setVaspLinePointsText] = useState("50");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const vaspLinePoints = Number(vaspLinePointsText);
   const normalizedVaspLinePoints = Number.isFinite(vaspLinePoints) && vaspLinePoints > 0 ? vaspLinePoints : 50;
   const canExportVasp = exportFormat !== "vasp" || canFormatVaspKpoints(kPath);
-  const exportText = canExportVasp ? formatKPathExport(kPath, exportFormat, normalizedVaspLinePoints) : "";
+  const canExportVaspHybrid = exportFormat !== "vasp-hybrid" || canFormatVaspHybridKpoints(kPath);
+  const canExport = canExportVasp && canExportVaspHybrid;
+  const exportText = canExport ? formatKPathExport(kPath, exportFormat, normalizedVaspLinePoints) : "";
   const validPointCount = resolvedKPath.filter((point) => !point.error).length;
+
+  async function handleCopyExport(): Promise<void> {
+    if (!exportText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(exportText);
+      setCopyStatus("copied");
+      window.setTimeout(() => setCopyStatus("idle"), 1600);
+    } catch {
+      setCopyStatus("failed");
+      window.setTimeout(() => setCopyStatus("idle"), 2200);
+    }
+  }
 
   return (
     <div className="panel">
@@ -181,11 +215,7 @@ export default function KPathEditor({
         <div className="panel-header">
           <div>
             <h2>K-Path Export</h2>
-            <p>
-              {exportFormat === "vasp"
-                ? "Complete VASP KPOINTS Line-mode file with continuous adjacent path segments."
-                : "wannier90-style fractional coordinates followed by labels."}
-            </p>
+            <p>{exportDescription(exportFormat)}</p>
           </div>
         </div>
         <div className="export-controls">
@@ -198,6 +228,13 @@ export default function KPathEditor({
               VASP
             </button>
             <button
+              className={exportFormat === "vasp-hybrid" ? "format-option format-option-active" : "format-option"}
+              type="button"
+              onClick={() => setExportFormat("vasp-hybrid")}
+            >
+              VASP hybrid
+            </button>
+            <button
               className={exportFormat === "wannier90" ? "format-option format-option-active" : "format-option"}
               type="button"
               onClick={() => setExportFormat("wannier90")}
@@ -205,11 +242,11 @@ export default function KPathEditor({
               wannier90
             </button>
           </div>
-          {exportFormat === "vasp" ? (
+          {exportFormat === "vasp" || exportFormat === "vasp-hybrid" ? (
             <label className="export-grid-field">
-              <span>Grid per segment</span>
+              <span>{exportFormat === "vasp-hybrid" ? "Points per segment" : "Grid per segment"}</span>
               <input
-                min="1"
+                min={exportFormat === "vasp-hybrid" ? "2" : "1"}
                 step="1"
                 type="number"
                 value={vaspLinePointsText}
@@ -217,9 +254,15 @@ export default function KPathEditor({
               />
             </label>
           ) : null}
+          <button className="ghost-button export-copy-button" type="button" disabled={!exportText} onClick={handleCopyExport}>
+            {copyStatus === "copied" ? "Copied" : copyStatus === "failed" ? "Copy failed" : "Copy"}
+          </button>
         </div>
         {exportFormat === "vasp" && !canExportVasp ? (
           <div className="kpath-error">VASP Line-mode requires at least two K-path points.</div>
+        ) : null}
+        {exportFormat === "vasp-hybrid" && !canExportVaspHybrid ? (
+          <div className="kpath-error">VASP hybrid export requires at least two valid K-path points.</div>
         ) : null}
         <textarea className="kpath-export-textarea" readOnly value={exportText} />
       </div>

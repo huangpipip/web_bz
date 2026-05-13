@@ -107,4 +107,83 @@ describe("kpath utilities", () => {
 
     expect(text).toBe("");
   });
+
+  it("formats VASP hybrid KPOINTS as explicit zero-weight points", () => {
+    const text = formatKPathExport(
+      [
+        {
+          id: "1",
+          label: "GAMMA",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        },
+        {
+          id: "2",
+          label: "X",
+          fractionalText: ["0.50000", "0.00000", "0.00000"]
+        }
+      ],
+      "vasp-hybrid",
+      4
+    );
+    const lines = text.split("\n");
+
+    expect(lines.slice(0, 3)).toEqual(["KPOINTS", "4", "Reciprocal"]);
+    expect(lines[3]).toBe("0.00000000 0.00000000 0.00000000 0 ! GAMMA");
+    expect(lines[4]).toBe("0.16666667 0.00000000 0.00000000 0 ! GAMMA-X");
+    expect(lines[6]).toBe("0.50000000 0.00000000 0.00000000 0 ! X");
+    expect(lines.slice(3)).toHaveLength(4);
+    expect(lines.slice(3).every((line) => line.includes(" 0 ! "))).toBe(true);
+  });
+
+  it("formats VASP hybrid KPOINTS without duplicate segment junctions", () => {
+    const text = formatKPathExport(
+      [
+        {
+          id: "1",
+          label: "L",
+          fractionalText: ["0.00000", "0.50000", "0.00000"]
+        },
+        {
+          id: "2",
+          label: "GAMMA",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        },
+        {
+          id: "3",
+          label: "F",
+          fractionalText: ["0.50000", "0.00000", "0.00000"]
+        }
+      ],
+      "vasp-hybrid",
+      4
+    );
+    const lines = text.split("\n");
+    const dataLines = lines.slice(3);
+
+    expect(lines[1]).toBe("7");
+    expect(dataLines).toHaveLength(7);
+    expect(dataLines.filter((line) => line === "0.00000000 0.00000000 0.00000000 0 ! GAMMA")).toHaveLength(1);
+    expect(dataLines.every((line) => line.includes(" 0 ! "))).toBe(true);
+  });
+
+  it("does not format VASP hybrid KPOINTS from invalid coordinates", () => {
+    const text = formatKPathExport(
+      [
+        {
+          id: "1",
+          label: "GAMMA",
+          fractionalText: ["0.00000", "0.00000", "0.00000"]
+        },
+        {
+          id: "2",
+          label: "X",
+          fractionalText: ["", "0.00000", "0.00000"]
+        }
+      ],
+      "vasp-hybrid",
+      4
+    );
+
+    expect(text).toBe("");
+  });
 });

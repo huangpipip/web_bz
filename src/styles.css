@@ -781,8 +781,13 @@ code {
   border-radius: 12px;
 }
 
+.export-copy-button {
+  padding: 8px 13px;
+  font-size: 0.86rem;
+}
+
 .kpath-export-textarea {
-  min-height: 128px;
+  min-height: 220px;
   resize: vertical;
 }
 
