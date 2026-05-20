@@ -16,6 +16,7 @@ interface BzCanvasProps {
   onRemovePointFromKPath: (pointId: string) => void;
   onSelectPoint: (pointId: string | null) => void;
   showReciprocalVectors: boolean;
+  useWhiteBackground: boolean;
   viewResetToken: number;
 }
 
@@ -48,6 +49,82 @@ const POINT_COLORS: Record<BzPointType, string> = {
   edge: "#f2d06b",
   line: "#5fd3bc",
   poly: "#68a5ff"
+};
+
+const WHITE_BACKGROUND_POINT_COLORS: Record<BzPointType, string> = {
+  center: "#d95700",
+  edge: "#b38300",
+  line: "#138b74",
+  poly: "#2563c9"
+};
+
+interface CanvasPalette {
+  background: string;
+  faceFill: (faceLight: number) => string;
+  faceStroke: string;
+  selectedPointStroke: string;
+  pointColors: Record<BzPointType, string>;
+  kPathStroke: string;
+  kPathFill: string;
+  kPathOutline: string;
+  kPathLabel: string;
+  labelBackground: string;
+  labelBorder: string;
+  labelText: string;
+  addButtonBackground: string;
+  addButtonBorder: string;
+  removeButtonBackground: string;
+  removeButtonBorder: string;
+  disabledButtonBackground: string;
+  disabledButtonBorder: string;
+  buttonText: string;
+  disabledButtonText: string;
+}
+
+const DARK_CANVAS_PALETTE: CanvasPalette = {
+  background: "rgba(9, 18, 30, 0.96)",
+  faceFill: (faceLight) => `rgba(84, 122, 182, ${0.14 + faceLight * 0.16})`,
+  faceStroke: "rgba(226, 236, 255, 0.82)",
+  selectedPointStroke: "rgba(255, 255, 255, 0.95)",
+  pointColors: POINT_COLORS,
+  kPathStroke: "rgba(255, 118, 190, 0.95)",
+  kPathFill: "rgba(255, 118, 190, 0.95)",
+  kPathOutline: "rgba(255, 240, 248, 0.95)",
+  kPathLabel: "#fff4fb",
+  labelBackground: "rgba(9, 18, 30, 0.9)",
+  labelBorder: "rgba(255, 255, 255, 0.2)",
+  labelText: "#f4f8ff",
+  addButtonBackground: "rgba(126, 190, 255, 0.22)",
+  addButtonBorder: "rgba(126, 190, 255, 0.58)",
+  removeButtonBackground: "rgba(255, 154, 77, 0.18)",
+  removeButtonBorder: "rgba(255, 154, 77, 0.5)",
+  disabledButtonBackground: "rgba(255, 255, 255, 0.04)",
+  disabledButtonBorder: "rgba(255, 255, 255, 0.12)",
+  buttonText: "#f8fbff",
+  disabledButtonText: "rgba(227, 236, 255, 0.36)"
+};
+
+const WHITE_CANVAS_PALETTE: CanvasPalette = {
+  background: "#ffffff",
+  faceFill: (faceLight) => `rgba(77, 115, 171, ${0.16 + faceLight * 0.2})`,
+  faceStroke: "rgba(48, 68, 98, 0.82)",
+  selectedPointStroke: "rgba(22, 30, 45, 0.9)",
+  pointColors: WHITE_BACKGROUND_POINT_COLORS,
+  kPathStroke: "rgba(197, 35, 116, 0.95)",
+  kPathFill: "rgba(197, 35, 116, 0.95)",
+  kPathOutline: "rgba(255, 255, 255, 0.98)",
+  kPathLabel: "#8f1854",
+  labelBackground: "rgba(255, 255, 255, 0.94)",
+  labelBorder: "rgba(34, 46, 66, 0.22)",
+  labelText: "#162033",
+  addButtonBackground: "rgba(37, 99, 201, 0.12)",
+  addButtonBorder: "rgba(37, 99, 201, 0.48)",
+  removeButtonBackground: "rgba(217, 87, 0, 0.12)",
+  removeButtonBorder: "rgba(217, 87, 0, 0.42)",
+  disabledButtonBackground: "rgba(22, 30, 45, 0.05)",
+  disabledButtonBorder: "rgba(22, 30, 45, 0.12)",
+  buttonText: "#162033",
+  disabledButtonText: "rgba(22, 30, 45, 0.34)"
 };
 
 const POINT_RADII: Record<BzPointType, number> = {
@@ -129,6 +206,7 @@ export default function BzCanvas({
   onRemovePointFromKPath,
   onSelectPoint,
   showReciprocalVectors,
+  useWhiteBackground,
   viewResetToken
 }: BzCanvasProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -178,10 +256,11 @@ export default function BzCanvas({
     };
 
     const draw = (ctx: CanvasRenderingContext2D, width: number, height: number): void => {
+      const palette = useWhiteBackground ? WHITE_CANVAS_PALETTE : DARK_CANVAS_PALETTE;
       labelActionHitAreasRef.current = [];
       ctx.clearRect(0, 0, width, height);
 
-      ctx.fillStyle = "rgba(9, 18, 30, 0.96)";
+      ctx.fillStyle = palette.background;
       ctx.fillRect(0, 0, width, height);
 
       const maxRadius = Math.max(
@@ -213,10 +292,10 @@ export default function BzCanvas({
         }
         ctx.closePath();
 
-        ctx.fillStyle = `rgba(84, 122, 182, ${0.14 + faceLight * 0.16})`;
+        ctx.fillStyle = palette.faceFill(faceLight);
         ctx.fill();
         ctx.lineWidth = 1.6;
-        ctx.strokeStyle = "rgba(226, 236, 255, 0.82)";
+        ctx.strokeStyle = palette.faceStroke;
         ctx.stroke();
       }
 
@@ -289,7 +368,7 @@ export default function BzCanvas({
         }
 
         if (previousProjectedPoint) {
-          ctx.strokeStyle = "rgba(255, 118, 190, 0.95)";
+          ctx.strokeStyle = palette.kPathStroke;
           ctx.lineWidth = 2.4;
           ctx.beginPath();
           ctx.moveTo(previousProjectedPoint.x, previousProjectedPoint.y);
@@ -312,12 +391,12 @@ export default function BzCanvas({
         const isSelected = entry.point.id === selectedPointId;
         ctx.beginPath();
         ctx.arc(entry.x, entry.y, entry.radius + (isSelected ? 3 : 0), 0, Math.PI * 2);
-        ctx.fillStyle = POINT_COLORS[entry.point.type];
+        ctx.fillStyle = palette.pointColors[entry.point.type];
         ctx.fill();
 
         if (isSelected) {
           ctx.lineWidth = 2;
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+          ctx.strokeStyle = palette.selectedPointStroke;
           ctx.stroke();
         }
       }
@@ -329,13 +408,13 @@ export default function BzCanvas({
 
         ctx.beginPath();
         ctx.arc(entry.projected.x, entry.projected.y, 7, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 118, 190, 0.95)";
+        ctx.fillStyle = palette.kPathFill;
         ctx.fill();
         ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgba(255, 240, 248, 0.95)";
+        ctx.strokeStyle = palette.kPathOutline;
         ctx.stroke();
 
-        ctx.fillStyle = "#fff4fb";
+        ctx.fillStyle = palette.kPathLabel;
         ctx.font = "12px 'Avenir Next', 'Segoe UI', sans-serif";
         ctx.fillText(String(entry.index + 1), entry.projected.x + 10, entry.projected.y - 10);
       }
@@ -363,12 +442,12 @@ export default function BzCanvas({
           const boxX = clamp(projectedPoint.x + 12, 12, Math.max(12, width - boxWidth - 12));
           const boxY = clamp(projectedPoint.y - 38, 12, Math.max(12, height - boxHeight - 12));
 
-          ctx.fillStyle = "rgba(9, 18, 30, 0.9)";
+          ctx.fillStyle = palette.labelBackground;
           ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+          ctx.strokeStyle = palette.labelBorder;
           ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
 
-          ctx.fillStyle = "#f4f8ff";
+          ctx.fillStyle = palette.labelText;
           ctx.fillText(fittedLabel, boxX + paddingX, boxY + 21);
 
           const removeButtonX = boxX + paddingX + textWidth + buttonGap;
@@ -400,20 +479,20 @@ export default function BzCanvas({
             ctx.roundRect(action.x, action.y, action.width, action.height, 6);
             ctx.fillStyle =
               action.action === "add"
-                ? "rgba(126, 190, 255, 0.22)"
+                ? palette.addButtonBackground
                 : action.disabled
-                  ? "rgba(255, 255, 255, 0.04)"
-                  : "rgba(255, 154, 77, 0.18)";
+                  ? palette.disabledButtonBackground
+                  : palette.removeButtonBackground;
             ctx.fill();
             ctx.strokeStyle =
               action.action === "add"
-                ? "rgba(126, 190, 255, 0.58)"
+                ? palette.addButtonBorder
                 : action.disabled
-                  ? "rgba(255, 255, 255, 0.12)"
-                  : "rgba(255, 154, 77, 0.5)";
+                  ? palette.disabledButtonBorder
+                  : palette.removeButtonBorder;
             ctx.stroke();
 
-            ctx.fillStyle = action.disabled ? "rgba(227, 236, 255, 0.36)" : "#f8fbff";
+            ctx.fillStyle = action.disabled ? palette.disabledButtonText : palette.buttonText;
             ctx.font = "16px 'Avenir Next', 'Segoe UI', sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
@@ -432,7 +511,7 @@ export default function BzCanvas({
     resize();
 
     return () => resizeObserver.disconnect();
-  }, [computation, kPath, rotation, selectedPointId, showReciprocalVectors, zoom]);
+  }, [computation, kPath, rotation, selectedPointId, showReciprocalVectors, useWhiteBackground, zoom]);
 
   const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>): void => {
     const canvas = canvasRef.current;

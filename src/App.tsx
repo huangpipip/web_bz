@@ -55,6 +55,7 @@ export default function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [viewResetToken, setViewResetToken] = useState(0);
   const [activeViewer, setActiveViewer] = useState<"classic" | "three">("classic");
+  const [useClassicWhiteBackground, setUseClassicWhiteBackground] = useState(false);
 
   const selectedPoint = computation?.points.find((point) => point.id === selectedPointId) ?? null;
   const resolvedKPath = computation ? resolveKPathPoints(kPath, computation.reciprocal) : [];
@@ -322,6 +323,17 @@ export default function App(): JSX.Element {
               </button>
             </div>
 
+            {activeViewer === "classic" ? (
+              <label className="viewer-option-toggle">
+                <input
+                  checked={useClassicWhiteBackground}
+                  onChange={(event) => setUseClassicWhiteBackground(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>White background</span>
+              </label>
+            ) : null}
+
             <div className="workspace-meta">
               <span>{computation?.parsed.title ?? "Waiting for render"}</span>
               <span>{computation?.points.length ?? 0} points</span>
@@ -341,6 +353,7 @@ export default function App(): JSX.Element {
               onRemovePointFromKPath={handleRemovePointFromKPath}
               onSelectPoint={setSelectedPointId}
               showReciprocalVectors={showVectors}
+              useWhiteBackground={useClassicWhiteBackground}
               viewResetToken={viewResetToken}
             />
           ) : (

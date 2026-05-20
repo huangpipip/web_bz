@@ -356,13 +356,17 @@ code {
 }
 
 .workspace-header-side {
-  display: contents;
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .viewer-tabs {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
+  flex: 0 0 auto;
 }
 
 .workspace-meta {
@@ -407,12 +411,25 @@ code {
 
 .viewer-tabs {
   display: inline-flex;
-  flex: 0 0 auto;
   gap: 4px;
   padding: 3px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.viewer-option-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 33px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .viewer-tab {
@@ -856,7 +873,18 @@ code {
   }
 
   .workspace-header {
+    grid-template-columns: 1fr;
     margin-bottom: 8px;
+  }
+
+  .workspace-header-side {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+
+  .workspace-meta {
+    grid-row: 3;
   }
 
   .workspace-copy h2 {
