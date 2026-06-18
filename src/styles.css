@@ -530,7 +530,31 @@ code {
   backdrop-filter: blur(14px);
 }
 
+.lattice-overlay-card {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(8, 16, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
 .viewer-overlay-card strong {
+  display: block;
+  color: #f7fbff;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.lattice-overlay-card strong {
   display: block;
   color: #f7fbff;
   font-size: 0.95rem;
@@ -548,6 +572,10 @@ code {
 }
 
 .viewer-overlay-copy {
+  min-width: 0;
+}
+
+.lattice-overlay-copy {
   min-width: 0;
 }
 
@@ -899,6 +927,14 @@ code {
     left: 12px;
     right: 12px;
     bottom: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lattice-overlay-card {
+    left: 12px;
+    right: 12px;
+    top: 12px;
     flex-direction: column;
     align-items: stretch;
   }

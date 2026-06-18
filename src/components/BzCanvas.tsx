@@ -4,8 +4,7 @@ import {
   clamp,
   dotVec3,
   lengthVec3,
-  normalizeVec3,
-  scaleVec3
+  normalizeVec3
 } from "../lib/math";
 
 interface BzCanvasProps {
@@ -15,6 +14,7 @@ interface BzCanvasProps {
   onAddPointToKPath: (pointId: string) => void;
   onRemovePointFromKPath: (pointId: string) => void;
   onSelectPoint: (pointId: string | null) => void;
+  showCartesianAxes: boolean;
   showReciprocalVectors: boolean;
   useWhiteBackground: boolean;
   viewResetToken: number;
@@ -198,6 +198,40 @@ function fitCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: nu
   return `${next}${ellipsis}`;
 }
 
+function drawProjectedArrow(
+  ctx: CanvasRenderingContext2D,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  color: string,
+  label: string,
+  lineWidth: number
+): void {
+  const midpoint = {
+    x: start.x + (end.x - start.x) * 0.5,
+    y: start.y + (end.y - start.y) * 0.5
+  };
+  const direction = normalizeVec3([end.x - midpoint.x, end.y - midpoint.y, 0]);
+  const perpendicular: Vec3 = [-direction[1], direction[0], 0];
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(end.x, end.y);
+  ctx.lineTo(end.x - direction[0] * 12 + perpendicular[0] * 5, end.y - direction[1] * 12 + perpendicular[1] * 5);
+  ctx.lineTo(end.x - direction[0] * 12 - perpendicular[0] * 5, end.y - direction[1] * 12 - perpendicular[1] * 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.font = "12px 'Avenir Next', 'Segoe UI', sans-serif";
+  ctx.fillText(label, end.x + 8, end.y - 8);
+}
+
 export default function BzCanvas({
   computation,
   selectedPointId,
@@ -205,6 +239,7 @@ export default function BzCanvas({
   onAddPointToKPath,
   onRemovePointFromKPath,
   onSelectPoint,
+  showCartesianAxes,
   showReciprocalVectors,
   useWhiteBackground,
   viewResetToken
@@ -299,33 +334,27 @@ export default function BzCanvas({
         ctx.stroke();
       }
 
+      if (showCartesianAxes) {
+        const axisLength = maxRadius * 2.16;
+        const axes: Array<{ label: string; vector: Vec3; color: string }> = [
+          { label: "x", vector: [axisLength, 0, 0], color: "#ff5c78" },
+          { label: "y", vector: [0, axisLength, 0], color: "#9be36d" },
+          { label: "z", vector: [0, 0, axisLength], color: "#7ebeff" }
+        ];
+        const start = projectVector([0, 0, 0], width, height, scale);
+        for (const axis of axes) {
+          const end = projectVector(rotateVector(axis.vector, rotation), width, height, scale);
+          drawProjectedArrow(ctx, start, end, axis.color, axis.label, 2.1);
+        }
+      }
+
       if (showReciprocalVectors) {
         const basis = computation.reciprocal.reciprocalBasis.map((vector) => rotateVector(vector, rotation));
         const colors = ["#ff8a3d", "#5ae6be", "#83b7ff"];
         basis.forEach((vector, index) => {
           const start = projectVector([0, 0, 0], width, height, scale);
-          const mid = projectVector(scaleVec3(vector, 0.5), width, height, scale);
           const end = projectVector(vector, width, height, scale);
-          const direction = normalizeVec3([end.x - mid.x, end.y - mid.y, 0]);
-          const perpendicular: Vec3 = [-direction[1], direction[0], 0];
-
-          ctx.strokeStyle = colors[index];
-          ctx.fillStyle = colors[index];
-          ctx.lineWidth = 2.3;
-          ctx.beginPath();
-          ctx.moveTo(start.x, start.y);
-          ctx.lineTo(end.x, end.y);
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.moveTo(end.x, end.y);
-          ctx.lineTo(end.x - direction[0] * 12 + perpendicular[0] * 5, end.y - direction[1] * 12 + perpendicular[1] * 5);
-          ctx.lineTo(end.x - direction[0] * 12 - perpendicular[0] * 5, end.y - direction[1] * 12 - perpendicular[1] * 5);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.font = "12px 'Avenir Next', 'Segoe UI', sans-serif";
-          ctx.fillText(`b${index + 1}`, end.x + 8, end.y - 8);
+          drawProjectedArrow(ctx, start, end, colors[index], `b${index + 1}`, 2.3);
         });
       }
 
@@ -511,7 +540,7 @@ export default function BzCanvas({
     resize();
 
     return () => resizeObserver.disconnect();
-  }, [computation, kPath, rotation, selectedPointId, showReciprocalVectors, useWhiteBackground, zoom]);
+  }, [computation, kPath, rotation, selectedPointId, showCartesianAxes, showReciprocalVectors, useWhiteBackground, zoom]);
 
   const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>): void => {
     const canvas = canvasRef.current;

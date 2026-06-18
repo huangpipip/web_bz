@@ -9,6 +9,8 @@ import { SILICON_SINGLE_CRYSTAL_SAMPLE } from "./lib/samples";
 
 const INITIAL_POSCAR = SILICON_SINGLE_CRYSTAL_SAMPLE;
 const BzThreeViewer = lazy(() => import("./components/BzThreeViewer"));
+const LatticeRelationViewer = lazy(() => import("./components/LatticeRelationViewer"));
+type ViewerMode = "classic" | "three" | "lattice";
 
 function countByType(computation: BzComputation | null, type: "center" | "edge" | "line" | "poly"): number {
   if (!computation) {
@@ -51,10 +53,11 @@ export default function App(): JSX.Element {
     }
   });
   const [showVectors, setShowVectors] = useState(true);
+  const [showCartesianAxes, setShowCartesianAxes] = useState(false);
   const [kPath, setKPath] = useState<KPathPointDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [viewResetToken, setViewResetToken] = useState(0);
-  const [activeViewer, setActiveViewer] = useState<"classic" | "three">("classic");
+  const [activeViewer, setActiveViewer] = useState<ViewerMode>("classic");
   const [useClassicWhiteBackground, setUseClassicWhiteBackground] = useState(false);
 
   const selectedPoint = computation?.points.find((point) => point.id === selectedPointId) ?? null;
@@ -187,6 +190,14 @@ export default function App(): JSX.Element {
                 type="checkbox"
               />
               <span>Show reciprocal vectors</span>
+            </label>
+            <label className="toggle-row">
+              <input
+                checked={showCartesianAxes}
+                onChange={(event) => setShowCartesianAxes(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Show Cartesian axes</span>
             </label>
           </div>
 
@@ -321,6 +332,15 @@ export default function App(): JSX.Element {
               >
                 3D
               </button>
+              <button
+                aria-selected={activeViewer === "lattice"}
+                className={activeViewer === "lattice" ? "viewer-tab viewer-tab-active" : "viewer-tab"}
+                role="tab"
+                type="button"
+                onClick={() => setActiveViewer("lattice")}
+              >
+                Lattice
+              </button>
             </div>
 
             {activeViewer === "classic" ? (
@@ -352,11 +372,12 @@ export default function App(): JSX.Element {
               onAddPointToKPath={handleAddPointToKPath}
               onRemovePointFromKPath={handleRemovePointFromKPath}
               onSelectPoint={setSelectedPointId}
+              showCartesianAxes={showCartesianAxes}
               showReciprocalVectors={showVectors}
               useWhiteBackground={useClassicWhiteBackground}
               viewResetToken={viewResetToken}
             />
-          ) : (
+          ) : activeViewer === "three" ? (
             <Suspense
               fallback={
                 <div className="viewer-panel">
@@ -376,6 +397,23 @@ export default function App(): JSX.Element {
                 onRemovePointFromKPath={handleRemovePointFromKPath}
                 onSelectPoint={setSelectedPointId}
                 showReciprocalVectors={showVectors}
+                viewResetToken={viewResetToken}
+              />
+            </Suspense>
+          ) : (
+            <Suspense
+              fallback={
+                <div className="viewer-panel">
+                  <div className="viewer-canvas-shell">
+                    <div className="viewer-empty">
+                      <p>Loading lattice viewer…</p>
+                    </div>
+                  </div>
+                </div>
+              }
+            >
+              <LatticeRelationViewer
+                computation={computation}
                 viewResetToken={viewResetToken}
               />
             </Suspense>
