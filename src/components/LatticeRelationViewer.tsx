@@ -9,8 +9,11 @@ import { addVec3, lengthVec3 } from "../lib/math";
 
 interface LatticeRelationViewerProps {
   computation: BzComputation | null;
+  usePerspectiveProjection: boolean;
   viewResetToken: number;
 }
+
+type ViewerCamera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
 const BASIS_COLORS = ["#ff8a3d", "#5ae6be", "#83b7ff"];
 const CARTESIAN_COLORS = ["#ff5c78", "#9be36d", "#7ebeff"];
@@ -110,10 +113,13 @@ function createWebglLineSegments(
     linewidth: WEBGL_LINE_WIDTH,
     transparent: true,
     opacity,
+    depthWrite: false,
     resolution: viewport
   });
 
-  return new LineSegments2(geometry, material);
+  const lines = new LineSegments2(geometry, material);
+  lines.renderOrder = 0;
+  return lines;
 }
 
 function createCellFrame(basis: Mat3, renderer: THREE.WebGLRenderer | null): LineSegments2 {
@@ -195,51 +201,70 @@ function addArrowWithLabel(
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
-      opacity: 0.86
+      opacity: 0.86,
+      depthTest: false,
+      depthWrite: false
     })
   );
   if (shaft) {
+    shaft.renderOrder = 2;
     group.add(shaft);
   }
 
-  group.add(
-    new THREE.ArrowHelper(
-      direction.clone().normalize(),
-      new THREE.Vector3(0, 0, 0),
-      length,
-      color,
-      Math.max(VECTOR_HEAD_LENGTH * worldUnitsPerPixel, length * 0.08),
-      Math.max(VECTOR_HEAD_WIDTH * worldUnitsPerPixel, length * 0.035)
-    )
+  const arrow = new THREE.ArrowHelper(
+    direction.clone().normalize(),
+    new THREE.Vector3(0, 0, 0),
+    length,
+    color,
+    Math.max(VECTOR_HEAD_LENGTH * worldUnitsPerPixel, length * 0.08),
+    Math.max(VECTOR_HEAD_WIDTH * worldUnitsPerPixel, length * 0.035)
   );
+  for (const arrowPart of [arrow.line, arrow.cone]) {
+    const materials = Array.isArray(arrowPart.material) ? arrowPart.material : [arrowPart.material];
+    for (const material of materials) {
+      material.transparent = true;
+      material.depthTest = false;
+      material.depthWrite = false;
+    }
+    arrowPart.renderOrder = 2;
+  }
+  group.add(arrow);
 
   const labelSprite = createLabelSprite(label, color, labelScale);
   labelSprite.position.copy(direction.multiplyScalar(1.08));
+  labelSprite.renderOrder = 3;
   group.add(labelSprite);
 }
 
 function getViewerMetrics(
-  camera: THREE.PerspectiveCamera | null,
+  camera: ViewerCamera | null,
   renderer: THREE.WebGLRenderer | null,
   controls: OrbitControls | null
 ): { worldUnitsPerPixel: number } {
   const viewport = new THREE.Vector2();
   renderer?.getSize(viewport);
   const viewportHeight = Math.max(1, viewport.y);
-  const distance = camera && controls ? camera.position.distanceTo(controls.target) : 1;
-  const fovRadians = THREE.MathUtils.degToRad(camera?.fov ?? 46);
+  let worldUnitsPerPixel = 1 / viewportHeight;
+  if (camera instanceof THREE.OrthographicCamera) {
+    worldUnitsPerPixel = (camera.top - camera.bottom) / (camera.zoom * viewportHeight);
+  } else if (camera && controls) {
+    const distance = camera.position.distanceTo(controls.target);
+    const fovRadians = THREE.MathUtils.degToRad(camera.fov);
+    worldUnitsPerPixel = (2 * distance * Math.tan(fovRadians / 2)) / viewportHeight;
+  }
   return {
-    worldUnitsPerPixel: (2 * distance * Math.tan(fovRadians / 2)) / viewportHeight
+    worldUnitsPerPixel
   };
 }
 
 export default function LatticeRelationViewer({
   computation,
+  usePerspectiveProjection,
   viewResetToken
 }: LatticeRelationViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraRef = useRef<ViewerCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const contentGroupRef = useRef<THREE.Group | null>(null);
   const currentExtentRef = useRef(1);
@@ -257,6 +282,17 @@ export default function LatticeRelationViewer({
     camera.position.set(distance * 0.92, distance * 0.78, distance * 1.06);
     camera.near = Math.max(0.01, extent / 80);
     camera.far = Math.max(300, distance * 24);
+    if (camera instanceof THREE.OrthographicCamera) {
+      const viewport = new THREE.Vector2(1, 1);
+      rendererRef.current?.getSize(viewport);
+      const aspect = viewport.x / Math.max(1, viewport.y);
+      const halfHeight = Math.max(extent * 1.3, 1.5);
+      camera.left = -halfHeight * aspect;
+      camera.right = halfHeight * aspect;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+      camera.zoom = 1;
+    }
     camera.updateProjectionMatrix();
     controls.target.set(0, 0, 0);
     controls.update();
@@ -275,9 +311,10 @@ export default function LatticeRelationViewer({
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#051018", 10, 42);
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 500);
+    const camera: ViewerCamera = usePerspectiveProjection
+      ? new THREE.PerspectiveCamera(46, 1, 0.1, 500)
+      : new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
     controls.enablePan = true;
@@ -303,7 +340,16 @@ export default function LatticeRelationViewer({
         return;
       }
       renderer.setSize(bounds.width, bounds.height, false);
-      camera.aspect = bounds.width / bounds.height;
+      const aspect = bounds.width / bounds.height;
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.aspect = aspect;
+      } else {
+        const halfHeight = Math.max(currentExtentRef.current * 1.3, 1.5);
+        camera.left = -halfHeight * aspect;
+        camera.right = halfHeight * aspect;
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+      }
       camera.updateProjectionMatrix();
     };
 
@@ -336,7 +382,7 @@ export default function LatticeRelationViewer({
       controlsRef.current = null;
       contentGroupRef.current = null;
     };
-  }, []);
+  }, [usePerspectiveProjection]);
 
   useEffect(() => {
     const group = contentGroupRef.current;
@@ -398,7 +444,7 @@ export default function LatticeRelationViewer({
     );
     group.add(origin);
     fitCamera(extent);
-  }, [computation]);
+  }, [computation, usePerspectiveProjection]);
 
   useEffect(() => {
     if (viewResetToken === previousResetTokenRef.current) {

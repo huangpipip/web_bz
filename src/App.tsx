@@ -59,6 +59,7 @@ export default function App(): JSX.Element {
   const [viewResetToken, setViewResetToken] = useState(0);
   const [activeViewer, setActiveViewer] = useState<ViewerMode>("classic");
   const [useClassicWhiteBackground, setUseClassicWhiteBackground] = useState(false);
+  const [usePerspectiveProjection, setUsePerspectiveProjection] = useState(true);
 
   const selectedPoint = computation?.points.find((point) => point.id === selectedPointId) ?? null;
   const resolvedKPath = computation ? resolveKPathPoints(kPath, computation.reciprocal) : [];
@@ -352,7 +353,16 @@ export default function App(): JSX.Element {
                 />
                 <span>White background</span>
               </label>
-            ) : null}
+            ) : (
+              <label className="viewer-option-toggle">
+                <input
+                  checked={usePerspectiveProjection}
+                  onChange={(event) => setUsePerspectiveProjection(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Perspective</span>
+              </label>
+            )}
 
             <div className="workspace-meta">
               <span>{computation?.parsed.title ?? "Waiting for render"}</span>
@@ -397,6 +407,7 @@ export default function App(): JSX.Element {
                 onRemovePointFromKPath={handleRemovePointFromKPath}
                 onSelectPoint={setSelectedPointId}
                 showReciprocalVectors={showVectors}
+                usePerspectiveProjection={usePerspectiveProjection}
                 viewResetToken={viewResetToken}
               />
             </Suspense>
@@ -414,6 +425,7 @@ export default function App(): JSX.Element {
             >
               <LatticeRelationViewer
                 computation={computation}
+                usePerspectiveProjection={usePerspectiveProjection}
                 viewResetToken={viewResetToken}
               />
             </Suspense>

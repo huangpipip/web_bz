@@ -17,8 +17,11 @@ interface BzThreeViewerProps {
   onRemovePointFromKPath: (pointId: string) => void;
   onSelectPoint: (pointId: string | null) => void;
   showReciprocalVectors: boolean;
+  usePerspectiveProjection: boolean;
   viewResetToken: number;
 }
+
+type ViewerCamera = THREE.PerspectiveCamera | THREE.OrthographicCamera;
 
 const POINT_COLORS: Record<BzPointType, string> = {
   center: "#ff7a1a",
@@ -121,16 +124,21 @@ function formatPointLabel(point: NonNullable<BzComputation["points"][number]>): 
 }
 
 function getViewerMetrics(
-  camera: THREE.PerspectiveCamera | null,
+  camera: ViewerCamera | null,
   renderer: THREE.WebGLRenderer | null,
   controls: OrbitControls | null
 ): { viewportHeight: number; worldUnitsPerPixel: number } {
   const viewport = new THREE.Vector2();
   renderer?.getSize(viewport);
   const viewportHeight = Math.max(1, viewport.y);
-  const distance = camera && controls ? camera.position.distanceTo(controls.target) : 1;
-  const fovRadians = THREE.MathUtils.degToRad(camera?.fov ?? 46);
-  const worldUnitsPerPixel = (2 * distance * Math.tan(fovRadians / 2)) / viewportHeight;
+  let worldUnitsPerPixel = 1 / viewportHeight;
+  if (camera instanceof THREE.OrthographicCamera) {
+    worldUnitsPerPixel = (camera.top - camera.bottom) / (camera.zoom * viewportHeight);
+  } else if (camera && controls) {
+    const distance = camera.position.distanceTo(controls.target);
+    const fovRadians = THREE.MathUtils.degToRad(camera.fov);
+    worldUnitsPerPixel = (2 * distance * Math.tan(fovRadians / 2)) / viewportHeight;
+  }
 
   return {
     viewportHeight,
@@ -166,12 +174,13 @@ export default function BzThreeViewer({
   onRemovePointFromKPath,
   onSelectPoint,
   showReciprocalVectors,
+  usePerspectiveProjection,
   viewResetToken
 }: BzThreeViewerProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraRef = useRef<ViewerCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const contentGroupRef = useRef<THREE.Group | null>(null);
   const pointMeshesRef = useRef<THREE.Mesh[]>([]);
@@ -195,6 +204,17 @@ export default function BzThreeViewer({
     camera.position.set(distance * 0.95, distance * 0.72, distance * 1.08);
     camera.near = Math.max(0.01, extent / 50);
     camera.far = Math.max(400, distance * 25);
+    if (camera instanceof THREE.OrthographicCamera) {
+      const viewport = new THREE.Vector2(1, 1);
+      rendererRef.current?.getSize(viewport);
+      const aspect = viewport.x / Math.max(1, viewport.y);
+      const halfHeight = Math.max(extent * 3.15, 2.6);
+      camera.left = -halfHeight * aspect;
+      camera.right = halfHeight * aspect;
+      camera.top = halfHeight;
+      camera.bottom = -halfHeight;
+      camera.zoom = 1;
+    }
     camera.updateProjectionMatrix();
     controls.target.set(0, 0, 0);
     controls.update();
@@ -213,9 +233,10 @@ export default function BzThreeViewer({
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog("#051018", 10, 36);
 
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 500);
+    const camera: ViewerCamera = usePerspectiveProjection
+      ? new THREE.PerspectiveCamera(46, 1, 0.1, 500)
+      : new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = false;
     controls.enablePan = true;
@@ -250,7 +271,16 @@ export default function BzThreeViewer({
         return;
       }
       renderer.setSize(bounds.width, bounds.height, false);
-      camera.aspect = bounds.width / bounds.height;
+      const aspect = bounds.width / bounds.height;
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.aspect = aspect;
+      } else {
+        const halfHeight = Math.max(currentExtentRef.current * 3.15, 2.6);
+        camera.left = -halfHeight * aspect;
+        camera.right = halfHeight * aspect;
+        camera.top = halfHeight;
+        camera.bottom = -halfHeight;
+      }
       camera.updateProjectionMatrix();
     };
 
@@ -326,7 +356,7 @@ export default function BzThreeViewer({
       contentGroupRef.current = null;
       pointMeshesRef.current = [];
     };
-  }, [computation, onSelectPoint]);
+  }, [computation, onSelectPoint, usePerspectiveProjection]);
 
   useEffect(() => {
     const group = contentGroupRef.current;
@@ -489,7 +519,7 @@ export default function BzThreeViewer({
       fitCamera(extent);
       previousComputationRef.current = computation;
     }
-  }, [computation, kPath, selectedPointId, showReciprocalVectors]);
+  }, [computation, kPath, selectedPointId, showReciprocalVectors, usePerspectiveProjection]);
 
   useEffect(() => {
     if (viewResetToken === previousResetTokenRef.current) {
