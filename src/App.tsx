@@ -149,11 +149,11 @@ export default function App(): JSX.Element {
     <div className="app-shell">
       <aside className="control-panel">
         <section className="panel toolbar-header">
-          <span className="eyebrow">POSCAR to Brillouin Zone</span>
           <h1>Brillouin Zone Workbench</h1>
-          <p>
-            Parse a POSCAR locally, compute the first Brillouin zone in-browser, inspect XCrySDen-style
-            special points, and assemble an editable reciprocal-space K path.
+          <p className="header-links">
+            <a href="https://github.com/huangpipip/web_bz" rel="noreferrer" target="_blank">
+              GitHub
+            </a>
           </p>
         </section>
 

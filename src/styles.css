@@ -104,6 +104,12 @@ code {
     linear-gradient(180deg, rgba(20, 39, 62, 0.94) 0%, rgba(11, 23, 36, 0.94) 100%);
 }
 
+.input-panel {
+  background:
+    linear-gradient(180deg, rgba(34, 25, 56, 0.85) 0%, rgba(22, 18, 43, 0.9) 100%);
+  border-color: rgba(190, 160, 255, 0.16);
+}
+
 .toolbar-header h1 {
   margin: 0 0 10px;
   font-size: clamp(1.9rem, 2.6vw, 3rem);
@@ -114,6 +120,20 @@ code {
 .toolbar-header p {
   margin: 0;
   color: var(--text-soft);
+}
+
+.header-links {
+  margin-top: 8px;
+}
+
+.header-links a {
+  color: var(--accent, #4aa3ff);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.header-links a:hover {
+  text-decoration: underline;
 }
 
 .eyebrow {
